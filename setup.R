@@ -1,3 +1,4 @@
+library(ggthemes)
 library(readxl)
 library(stringr)
 library(tidyverse)
@@ -25,8 +26,4 @@ data <- bind_rows(sheet1, sheet2, sheet3, sheet4) # AUTOMATE
 
 colnames(data) <- tolower(colnames(data))
 
-data2 <- data %>% group_by(wbs) %>% arrange(date) %>% mutate(cum_amount = cumsum(amount))
-data2 <- data2 %>% arrange(date) %>% filter(wbs=="J1")
 
-plot <- ggplot(data2, aes(x=date, y=cum_amount)) + geom_line()
-print(plot)
