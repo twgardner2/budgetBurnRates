@@ -11,12 +11,16 @@ shinyUI(fluidPage(
     sidebarPanel(
        selectInput(inputId = "wbs",
                    label = "Select Directorate:",
-                   choices = sheets)
+                   choices = sheets),
+       radioButtons(inputId = "aggregate",
+                    label = "Table Aggregation Timeframe:",
+                    choices = c("Quarterly", "Monthly"))
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
-       plotOutput("burnRatePlot")#
+       plotOutput("burnRatePlot"),
+       dataTableOutput("burnRateTable")
     )
   )
 ))
