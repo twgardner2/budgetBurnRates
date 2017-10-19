@@ -48,7 +48,7 @@ shinyServer(function(input, output) {
 
   output$burnRatePlot <- renderPlot({
     plot <- ggplot(wbsExpenses(), aes(x=postDate, y=cum_amount)) + 
-            geom_line() + 
+            geom_step() + 
             theme_fivethirtyeight() +
             scale_y_continuous(label=scales::dollar)
     print(plot)
