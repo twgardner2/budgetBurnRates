@@ -11,7 +11,7 @@ shinyUI(fluidPage(
     sidebarPanel(
        selectInput(inputId = "wbs",
                    label = "Select Directorate:",
-                   choices = sort(wbsList$directorate) ),
+                   choices = c("SOCFWD-NWA", sort(wbsList$directorate)) ),
        radioButtons(inputId = "aggregate",
                     label = "Table Aggregation Timeframe:",
                     choices = c("Quarterly", "Monthly"))
