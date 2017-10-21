@@ -38,7 +38,7 @@ dateToFD <- function(x) {
   }
 }
 
-expClean <- function(x) {
+prepFYExp <- function(x) {
   # Rename columns
   colnames(x) <- c("wbs", "commitmentItem", "commitmentItemCat", "postDate", "obligation")
   
@@ -50,6 +50,16 @@ expClean <- function(x) {
   
   # Filter out transactions from previous years
   x <- x %>% filter(dateToFY(postDate) %in% 2017:2018)
+  
+  # Calculate fiscal periods (year, quarter, month, day)
+  x <- x %>% mutate(fiscalYear = dateToFY(postDate),
+                    fiscalQtr  = dateToFQ(postDate))
+  x$fiscalDay   <- unlist(map(x$postDate,dateToFD))
+  x$fiscalMonth <- unlist(map(x$postDate,dateToFM))
+  
+  # Rename wbs column
+  str_FY <- x[1,]$fiscalYear
+  colnames(x)[1] <- str_c("wbs", str_FY)
   
   return(x)
 }
@@ -65,22 +75,23 @@ exp17Data <- read_xlsx(data_file, sheet = 1, trim_ws = TRUE)
 exp18Data <- read_xlsx(data_file, sheet = 2, trim_ws = TRUE)
 wbsList <- read_xlsx(data_file, sheet = 3, trim_ws = TRUE)
 
-### Clean expData
-exp17Data <- expClean(exp17Data)
-exp18Data <- expClean(exp18Data)
+### Prepare expData
+exp17Data <- prepFYExp(exp17Data)
+exp18Data <- prepFYExp(exp18Data)
 
 ### Clean wbs 
 colnames(wbsList) <- tolower(colnames(wbsList))
 
 
-### Join wbs with directorate, calculate additional columns
-expData <- dplyr::left_join(expData, wbsList, by = c("wbs" = "wbs17"))
-expData <- expData %>% mutate(fiscalYear = dateToFY(postDate),
-                              fiscalQtr  = dateToFQ(postDate))
+### Join expenses to directorate label
+wbsList2017 <- wbsList %>% select(wbs2017, dir, dirfy17)
+exp17Data <- dplyr::left_join(exp17Data, wbsList2017, by = "wbs2017")
 
-expData$fiscalDay   <- unlist(map(expData$postDate,dateToFD))
-expData$fiscalMonth <- unlist(map(expData$postDate,dateToFM))
+wbsList2018 <- wbsList %>% select(wbs2018, dir)
+exp18Data <- dplyr::left_join(exp18Data, wbsList2018, by = "wbs2018")
 
+### Combine FY17 and FY18 data into single tibble
+expData <- dplyr::bind_rows(exp18Data, exp17Data)
 
 shinyServer(function(input, output) {
   
