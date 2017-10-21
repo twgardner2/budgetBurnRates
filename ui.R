@@ -11,7 +11,7 @@ shinyUI(fluidPage(
     sidebarPanel(
        selectInput(inputId = "wbs",
                    label = "Select Directorate:",
-                   choices = c("SOCFWD-NWA", sort(wbsList$directorate)) ),
+                   choices = c("SOCFWD-NWA", sort(wbsList$dir)) ),
        radioButtons(inputId = "aggregate",
                     label = "Table Aggregation Timeframe:",
                     choices = c("Quarterly", "Monthly"))
@@ -20,7 +20,8 @@ shinyUI(fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
        plotOutput("burnRatePlot"),
-       dataTableOutput("burnRateTable")
+       dataTableOutput("burnRateTable"),
+       dataTableOutput("plotDataTable")
     )
   )
 ))

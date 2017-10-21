@@ -79,14 +79,14 @@ wbsList <- read_xlsx(data_file, sheet = 3, trim_ws = TRUE)
 exp17Data <- prepFYExp(exp17Data)
 exp18Data <- prepFYExp(exp18Data)
 
-### Clean wbs 
+### Clean wbsList
 colnames(wbsList) <- tolower(colnames(wbsList))
 
-
-### Join expenses to directorate label
+### Join expenses to dir label
+# 2017
 wbsList2017 <- wbsList %>% select(wbs2017, dir, dirfy17)
 exp17Data <- dplyr::left_join(exp17Data, wbsList2017, by = "wbs2017")
-
+# 2018
 wbsList2018 <- wbsList %>% select(wbs2018, dir)
 exp18Data <- dplyr::left_join(exp18Data, wbsList2018, by = "wbs2018")
 
@@ -95,14 +95,14 @@ expData <- dplyr::bind_rows(exp18Data, exp17Data)
 
 shinyServer(function(input, output) {
   
-  wbsExpenses <- reactive({
+  plotData <- reactive({
     
     if(input$wbs == "SOCFWD-NWA") {
       expData %>% group_by(fiscalYear) %>% 
                   arrange(fiscalDay) %>% 
                   mutate(cum_amount = cumsum(obligation))
     } else {
-      expData %>% filter(directorate==input$wbs) %>% 
+      expData %>% filter(dir==input$wbs) %>% 
         group_by(fiscalYear) %>% 
         arrange(fiscalDay) %>% 
         mutate(cum_amount = cumsum(obligation))
@@ -110,53 +110,45 @@ shinyServer(function(input, output) {
   })
 
   tableData <- reactive({
+    # Select which column to group_by based on input$aggregate
     groupByCol <- switch(input$aggregate,
                          "Monthly"   = "fiscalMonth",
                          "Quarterly" = "fiscalQtr")
-    wbsExpenses() %>% group_by_(groupByCol) %>% 
+    
+    # fy17 <- plotData() %>% filter(fiscalYear == 2017) %>% 
+    #                        group_by_(groupByCol) %>% 
+    #                        summarize(periodObligation = sum(obligation))
+    # 
+    # fy18 <- plotData() %>% filter(fiscalYear == 2018) %>% 
+    #                         group_by_(groupByCol) %>% 
+    #                         summarize(periodObligation = sum(obligation))
+    # 
+    # table <- bind_cols(fy17, fy18)
+    # return(table)
+    
+    plotData() %>% group_by_(groupByCol) %>%
                       summarize(periodObligation = sum(obligation))
   })
   
   output$burnRatePlot <- renderPlot({
-    plot <- ggplot(wbsExpenses(), aes(x=fiscalDay, y=cum_amount, group=fiscalYear, color=factor(fiscalYear))) + 
+    plot <- ggplot(plotData(), aes(x=fiscalDay, y=cum_amount, group=fiscalYear, color=factor(fiscalYear))) + 
+            scale_colour_manual(values = c("red", "blue")) + 
             geom_step(size=1.25) + 
-            theme_economist() +
-            scale_y_continuous(label=scales::dollar)
+            theme_light() +
+            scale_y_continuous(label=scales::dollar) +
+            geom_vline(xintercept = 93) +
+            geom_vline(xintercept = 183) +
+            geom_vline(xintercept = 274)
+            
     print(plot)
   })
   
-  
-  # tableData <- reactive({
-  #   x <- switch (input$aggregate,
-  #           "Monthly"   = expDataByMonth,
-  #           "Quarterly" = expDataByQtr
-  #         )    
-  #   x %>% filter(directorate == input$wbs)
-  # })
-  
+
   output$burnRateTable <- renderDataTable({
     tableData()
     }, options = list(dom='t')  )
     
-    # if (input$aggregate == "Quarterly") {
-    #   tableData <- displayData() %>% mutate(quarter = lubridate::quarter(.$date, with_year = TRUE)) %>%
-    #                                  group_by(quarter) %>%
-    #                                  summarize(quarterly_amount = sum(amount))  %>%
-    #                                  
-    #   tableData
-    # } else {
-    #   tableData <- displayData() %>% mutate(month = lubridate::month(.$date)) %>%
-    #                                  group_by(month) %>%
-    #                                  summarize(monthly_amount = sum(amount)) %>%
-    #                                  datatable(rownames = FALSE,
-    #                                            colnames = c('Month', 'Expenses'),
-    #                                            filter = 'none',
-    #                                            options = list(pageLength = 12,
-    #                                                           dom = 't')) %>%
-    #                                  formatCurrency("monthly_amount")
-    #   tableData
-    # }
-
-  
-  
+  output$plotDataTable <- renderDataTable({
+    plotData()
+  })
 })
