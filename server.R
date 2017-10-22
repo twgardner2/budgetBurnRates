@@ -42,6 +42,9 @@ prepFYExp <- function(x) {
   # Rename columns
   colnames(x) <- c("wbs", "commitmentItem", "commitmentItemCat", "postDate", "obligation")
   
+  # Remove line items with missing obligation
+  x <- x %>% filter(!is.na(obligation))
+  
   # Convert dates to date
   x$postDate <- lubridate::as_date(x$postDate)
   
@@ -63,8 +66,15 @@ prepFYExp <- function(x) {
   
   return(x)
 }
+
+roundToHundred <- function(x) {round(x/100)*100}
 #####
 
+### Plot helper variables ####
+fiscalQtr_lines <- unlist(map(ymd(c("2018-01-01", "2018-04-01", "2018-07-01")), dateToFD))
+fiscalMonth_lines <- unlist(map(ymd(c("2017-11-01", "2017-12-01", "2018-01-01", "2018-02-01", "2018-03-01","2018-04-01", 
+                                      "2018-05-01", "2018-06-01","2018-07-01", "2018-08-01", "2018-09-01")), dateToFD))
+#####
 
 data_file <- "NWA_Directorates_Obligations.xlsx"
 #data_file <- "//10.6.100.235/tacnasa1$/Public/J8/Gardner/FY18 Budget Forecasting/app/NWA_Directorates_Obligations.xlsx"
@@ -95,60 +105,81 @@ expData <- dplyr::bind_rows(exp18Data, exp17Data)
 
 shinyServer(function(input, output) {
   
+  # Reactive data for plot
   plotData <- reactive({
     
-    if(input$wbs == "SOCFWD-NWA") {
+    if(input$dir== "SOCFWD-NWA") {
       expData %>% group_by(fiscalYear) %>% 
                   arrange(fiscalDay) %>% 
                   mutate(cum_amount = cumsum(obligation))
     } else {
-      expData %>% filter(dir==input$wbs) %>% 
+      expData %>% filter(dir==input$dir) %>% 
         group_by(fiscalYear) %>% 
         arrange(fiscalDay) %>% 
         mutate(cum_amount = cumsum(obligation))
     }
   })
 
+  # Reactive data for table
   tableData <- reactive({
-    # Select which column to group_by based on input$aggregate
-    groupByCol <- switch(input$aggregate,
-                         "Monthly"   = "fiscalMonth",
-                         "Quarterly" = "fiscalQtr")
     
-    # fy17 <- plotData() %>% filter(fiscalYear == 2017) %>% 
-    #                        group_by_(groupByCol) %>% 
-    #                        summarize(periodObligation = sum(obligation))
-    # 
-    # fy18 <- plotData() %>% filter(fiscalYear == 2018) %>% 
-    #                         group_by_(groupByCol) %>% 
-    #                         summarize(periodObligation = sum(obligation))
-    # 
-    # table <- bind_cols(fy17, fy18)
-    # return(table)
+    tableData <- expData
     
-    plotData() %>% group_by_(groupByCol) %>%
-                      summarize(periodObligation = sum(obligation))
+    if(input$dir != "SOCFWD-NWA") {tableData <- tableData %>% filter(dir == input$dir)}
+    
+    tableData %>% arrange(fiscalDay) %>% 
+                      group_by_(input$aggregate) %>%
+                      summarize(FY17 = sum(obligation[fiscalYear==2017]),
+                                FY18 = sum(obligation[fiscalYear==2018])) %>% 
+                      mutate(FY17cum = cumsum(FY17),
+                             FY18cum = cumsum(FY18)) %>% 
+                      select(1, FY17, FY17cum, FY18, FY18cum)
+    
+    # if(input$simplify) {
+    #   
+    #   tableData <- tableData %>% mutate(FY17 = map(tableData$FY17,roundToHundred))
+    #   
+    # }
+    
   })
-  
+    
+   
+  # Create plot
   output$burnRatePlot <- renderPlot({
+    
+    plot_vlines <- switch(input$aggregate,
+                          "fiscalQtr"   = fiscalQtr_lines,
+                          "fiscalMonth" = fiscalMonth_lines)
+    
     plot <- ggplot(plotData(), aes(x=fiscalDay, y=cum_amount, group=fiscalYear, color=factor(fiscalYear))) + 
             scale_colour_manual(values = c("red", "blue")) + 
             geom_step(size=1.25) + 
-            theme_light() +
+            theme_minimal() +
             scale_y_continuous(label=scales::dollar) +
-            geom_vline(xintercept = 93) +
-            geom_vline(xintercept = 183) +
-            geom_vline(xintercept = 274)
+            geom_vline(xintercept = plot_vlines) 
             
     print(plot)
   })
   
+  # Create summary table
+  output$burnRateTable <- DT::renderDataTable(DT::datatable(tableData(),
+                                                            rownames = FALSE,
+                                                            options = list(dom='t',
+                                                                           paging   = FALSE
+                                                                           )
+                                                            ) %>% 
+                                                formatCurrency(columns = c('FY17', 'FY18','FY17cum', 'FY18cum'),
+                                                               digits = 0)
+                                              )
+                                              
 
-  output$burnRateTable <- renderDataTable({
-    tableData()
-    }, options = list(dom='t')  )
-    
-  output$plotDataTable <- renderDataTable({
-    plotData()
-  })
+# ### TROUBLESHOOTING OUTPUTS ####  
+#   
+#   output$plotDataTable <- renderDataTable({
+#     plotData()
+#   })
+#   
+#   output$aggregateText <- renderText(input$simplify)
+# ######
+  
 })

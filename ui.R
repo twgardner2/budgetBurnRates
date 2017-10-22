@@ -9,19 +9,24 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for number of bins 
   sidebarLayout(
     sidebarPanel(
-       selectInput(inputId = "wbs",
+       selectInput(inputId = "dir",
                    label = "Select Directorate:",
                    choices = c("SOCFWD-NWA", sort(wbsList$dir)) ),
        radioButtons(inputId = "aggregate",
                     label = "Table Aggregation Timeframe:",
-                    choices = c("Quarterly", "Monthly"))
+                    choices = c("Quarterly" = "fiscalQtr", "Monthly" = "fiscalMonth")),
+       checkboxInput(inputId = "simplify",
+                     label = "Simplify Table?")
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
        plotOutput("burnRatePlot"),
+       textOutput("aggregateText"), ### TROUBLESHOOTING
        dataTableOutput("burnRateTable"),
-       dataTableOutput("plotDataTable")
+       # br(), ### TROUBLESHOOTING
+       # br(), ### TROUBLESHOOTING
+       dataTableOutput("plotDataTable") ### TROUBLESHOOTING
     )
   )
 ))
