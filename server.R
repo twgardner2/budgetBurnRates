@@ -108,16 +108,14 @@ shinyServer(function(input, output) {
   # Reactive data for plot
   plotData <- reactive({
     
-    if(input$dir== "SOCFWD-NWA") {
-      expData %>% group_by(fiscalYear) %>% 
-                  arrange(fiscalDay) %>% 
-                  mutate(cum_amount = cumsum(obligation))
-    } else {
-      expData %>% filter(dir==input$dir) %>% 
-        group_by(fiscalYear) %>% 
-        arrange(fiscalDay) %>% 
-        mutate(cum_amount = cumsum(obligation))
-    }
+    plotData <- expData
+    
+    if(input$dir != "SOCFWD-NWA") {plotData <- plotData %>% filter(dir==input$dir)}
+    
+    plotData <- plotData %>% filter(commitmentItemCat %in% input$commitmentItems) %>% 
+                             group_by(fiscalYear) %>% 
+                             arrange(fiscalDay) %>% 
+                             mutate(cum_amount = cumsum(obligation))
   })
 
   # Reactive data for table
@@ -127,23 +125,34 @@ shinyServer(function(input, output) {
     
     if(input$dir != "SOCFWD-NWA") {tableData <- tableData %>% filter(dir == input$dir)}
     
-    tableData %>% arrange(fiscalDay) %>% 
-                      group_by_(input$aggregate) %>%
-                      summarize(FY17 = sum(obligation[fiscalYear==2017]),
-                                FY18 = sum(obligation[fiscalYear==2018])) %>% 
-                      mutate(FY17cum = cumsum(FY17),
-                             FY18cum = cumsum(FY18)) %>% 
-                      select(1, FY17, FY17cum, FY18, FY18cum)
+    tableData %>% filter(commitmentItemCat %in% input$commitmentItems) %>% 
+                  arrange(fiscalDay) %>% 
+                  group_by_(input$aggregate) %>%
+                  summarize(FY17 = sum(obligation[fiscalYear==2017]),
+                            FY18 = sum(obligation[fiscalYear==2018])) %>% 
+                  mutate(FY17cum = cumsum(FY17),
+                         FY18cum = cumsum(FY18)) %>% 
+                  select(1, FY17, FY17cum, FY18, FY18cum)
     
     # if(input$simplify) {
-    #   
     #   tableData <- tableData %>% mutate(FY17 = map(tableData$FY17,roundToHundred))
-    #   
     # }
     
   })
+  
+  # Reactive UI for Commitment Item drop-down
+  output$commitmentItemDropDown <- shiny::renderUI({
     
-   
+    choicesData <- expData %>% select(dir, commitmentItemCat)
+    if(input$dir != "SOCFWD-NWA") {choicesData <- choicesData %>% filter(dir == input$dir)}
+    choices <- sort(unique(choicesData$commitmentItemCat))
+    
+    checkboxGroupInput(inputId  = "commitmentItems",
+                       label    = "Select Commitment Items to Include:",
+                       choices  = choices,
+                       selected = choices)
+  })
+  
   # Create plot
   output$burnRatePlot <- renderPlot({
     
@@ -155,6 +164,10 @@ shinyServer(function(input, output) {
             scale_colour_manual(values = c("red", "blue")) + 
             geom_step(size=1.25) + 
             theme_minimal() +
+            theme(legend.position = c(0.95, 0.50)) +
+            ylab(label = "Obligations") + 
+            xlab(label = "Day of Fiscal Year") + 
+            labs(color = "Fiscal Year") +
             scale_y_continuous(label=scales::dollar) +
             geom_vline(xintercept = plot_vlines) 
             
@@ -162,13 +175,26 @@ shinyServer(function(input, output) {
   })
   
   # Create summary table
+  periodLabel <- reactive({
+    switch(input$aggregate, 
+           "fiscalQtr" = "Fiscal Quarter", 
+           "fiscalMonth" = "Fiscal Month")
+  })
   output$burnRateTable <- DT::renderDataTable(DT::datatable(tableData(),
+                                                            colnames = c(periodLabel(), 
+                                                                         "FY17", 
+                                                                         "Cumulative FY17", 
+                                                                         "FY18", 
+                                                                         "Cumulative FY18"),
                                                             rownames = FALSE,
                                                             options = list(dom='t',
                                                                            paging   = FALSE
                                                                            )
                                                             ) %>% 
-                                                formatCurrency(columns = c('FY17', 'FY18','FY17cum', 'FY18cum'),
+                                                formatCurrency(columns = c('FY17', 
+                                                                           'FY18',
+                                                                           'FY17cum', 
+                                                                           'FY18cum'),
                                                                digits = 0)
                                               )
                                               

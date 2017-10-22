@@ -15,18 +15,19 @@ shinyUI(fluidPage(
        radioButtons(inputId = "aggregate",
                     label = "Table Aggregation Timeframe:",
                     choices = c("Quarterly" = "fiscalQtr", "Monthly" = "fiscalMonth")),
-       checkboxInput(inputId = "simplify",
-                     label = "Simplify Table?")
+       # checkboxInput(inputId = "simplify",
+       #               label = "Simplify Table?"),
+       uiOutput(outputId = "commitmentItemDropDown")
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
-       plotOutput("burnRatePlot"),
-       textOutput("aggregateText"), ### TROUBLESHOOTING
-       dataTableOutput("burnRateTable"),
+       plotOutput(outputId = "burnRatePlot"),
+       textOutput(outputId = "aggregateText"), ### TROUBLESHOOTING
+       dataTableOutput(outputId = "burnRateTable")
        # br(), ### TROUBLESHOOTING
        # br(), ### TROUBLESHOOTING
-       dataTableOutput("plotDataTable") ### TROUBLESHOOTING
+       #dataTableOutput(outputId = "plotDataTable") ### TROUBLESHOOTING
     )
   )
 ))
