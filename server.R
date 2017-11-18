@@ -173,7 +173,7 @@ shinyServer(function(input, output) {
                 FY17_26_supp_fuel = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "26"]),
                 FY17_31_equip     = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "31"]),
                 FY17_32_bldg_rep  = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "32"]),
-                FY17_31_fcm       = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "FC"]),
+                FY17_fcm          = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "FC"]),
                 FY18              = sum(obligation[fiscalYear==2018]),
                 FY18_21_trav      = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "21"]),
                 FY18_22_trans     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "22"]),
@@ -183,8 +183,17 @@ shinyServer(function(input, output) {
                 FY18_31_equip     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "31"]),
                 FY18_32_bldg_rep  = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "32"]),
                 FY18_31_fcm       = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "FC"])) %>% 
-      mutate(FY17cum     = cumsum(FY17),
-             FY17travcum = cumsum(FY17_21_trav),
+      mutate(FY17_cum               = cumsum(FY17),
+             FY17_21_trav_cum      = cumsum(FY17_21_trav),
+             FY17_22_trans_cum     = cumsum(FY17_22_trans),
+             FY17_23_rent_cum      = cumsum(FY17_23_rent),
+             FY17_25_contr_cum     = cumsum(FY17_25_contr),
+             FY17_26_supp_fuel_cum = cumsum(FY17_26_supp_fuel),
+             FY17_31_equip_cum     = cumsum(FY17_31_equip),
+             FY17_32_bldg_rep_cum  = cumsum(FY17_32_bldg_rep),
+             FY17_fcm_cum          = cumsum(FY17_fcm),
+
+             
              FY18cum     = cumsum(FY18),
              FY18travcum = cumsum(FY18_21_trav)) #%>% 
       #select(1, FY17, FY17cum, FY17trav, FY17travcum, FY17travcum, FY18, FY18cum, FY18trav, FY18travcum)
@@ -228,20 +237,23 @@ shinyServer(function(input, output) {
   })
   
   # Create FY17 stacked burnrate plot #########################################################
-  # output$stackedBurnRatePlot <- renderPlot({
-  #   plot_vlines <- switch(input$aggregate,
-  #                         "fiscalQtr"   = fiscalQtr_lines,
-  #                         "fiscalMonth" = fiscalMonth_lines)
-  #   
-  #   plot <- ggplot(downloadTableData(), aes(x = fiscalMonth, y = cumOblig))
-  #   plot <- plot + geom_area(aes(color = dirfy17, fill = dirfy17)) +
-  #     theme_light() +
-  #     xlab("Day of Fiscal Year") + ylab("Obligations") + labs(title = "FY17 Obligations") +
-  #     scale_y_continuous(label = dollar_format())
-  #   
-  #   plot
-  #   
-  # })
+  output$stackedBurnRatePlot <- renderPlot({
+    plot_vlines <- switch(input$aggregate,
+                          "fiscalQtr"   = fiscalQtr_lines,
+                          "fiscalMonth" = fiscalMonth_lines)
+    
+    stackPlotData <- downloadTableData()
+    stackPlotData <- stackPlotData %>% select(1, contains("_cum"), contains("FY17"))
+    
+    plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = FY17_cum))
+    # plot <- plot + geom_area(aes(color = dirfy17, fill = dirfy17)) +
+    #   theme_light() +
+    #   xlab("Day of Fiscal Year") + ylab("Obligations") + labs(title = "FY17 Obligations") +
+    #   scale_y_continuous(label = dollar_format())
+
+    plot + geom_area()
+
+  })
   
   # Create summary table
   periodLabel <- reactive({
