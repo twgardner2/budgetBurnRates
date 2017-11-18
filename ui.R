@@ -14,8 +14,10 @@ shinyUI(fluidPage(
                    choices = c("SOCFWD-NWA", sort(wbsList$dir)) ),
        radioButtons(inputId = "aggregate",
                     label = "Table Aggregation Timeframe:",
-                    choices = c("Quarterly" = "fiscalQtr", "Monthly" = "fiscalMonth")),
-       uiOutput(outputId = "commitmentItemCheckBoxes")
+                    choices = c("Monthly" = "fiscalMonth", "Quarterly" = "fiscalQtr")),
+       uiOutput(outputId = "commitmentItemCheckBoxes"),
+       downloadButton(outputId = "downloadTable",
+                      label    = "Download Data")
     ),
     
     # Show a plot of the generated distribution
@@ -23,7 +25,8 @@ shinyUI(fluidPage(
        plotOutput(outputId = "burnRatePlot"),
        #textOutput(outputId = "aggregateText"), ### TROUBLESHOOTING
        dataTableOutput(outputId = "burnRateTable"),
-       dataTableOutput(outputId = "plotDataTable") ### TROUBLESHOOTING
+       #dataTableOutput(outputId = "tableDataTable") ### TROUBLESHOOTING
+       plotOutput(outputId = "stackedBurnRatePlot")
     )
   )
 ))

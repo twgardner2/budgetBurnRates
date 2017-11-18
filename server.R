@@ -63,7 +63,14 @@ prepFYExp <- function(x) {
   x$fiscalMonth <- unlist(map(x$postDate,dateToFM))
   
   # create Commitment Item Group
-  x <- x %>% mutate(commitItemGroup = ifelse(str_sub(.$commitmentItem, 1, 2) == "F", "FCM", str_sub(.$commitmentItem, 1, 2)))
+  x <- x %>% mutate(commitItemGroup = ifelse(str_sub(.$commitmentItem, 1, 1) == "F", "FCM", str_sub(.$commitmentItem, 1, 2)))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "21", "21 - Travel", .$commitItemGroup))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "22", "22 - Transportation", .$commitItemGroup))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "23", "23 - Rental Payments", .$commitItemGroup))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "25", "25 - Contracts", .$commitItemGroup))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "26", "26 - Supplies/Bulk Fuel", .$commitItemGroup))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "31", "31 - Equipment", .$commitItemGroup))
+  x <- x %>% mutate(commitItemGroup = ifelse(.$commitItemGroup == "32", "32 - Building Repairs", .$commitItemGroup))
   
   # Rename wbs column
   str_FY <- x[1,]$fiscalYear
@@ -130,7 +137,6 @@ shinyServer(function(input, output) {
 
   # Reactive data for table
   tableData <- reactive({
-    cat(" tableData ")
     tableData <- expData
     
     if(input$dir != "SOCFWD-NWA") {tableData <- tableData %>% filter(dir == input$dir)}
@@ -150,6 +156,41 @@ shinyServer(function(input, output) {
                   select(1, FY17, FY17cum, FY17trav, FY17travcum, FY17travcum, FY18, FY18cum, FY18trav, FY18travcum)
   })
   
+  
+  # Reactive data for download table (table of all commitItemGroups)
+  downloadTableData <- reactive({
+    downloadTableData <- expData
+    
+    if(input$dir != "SOCFWD-NWA") {downloadTableData <- downloadTableData %>% filter(dir == input$dir)}
+    
+    downloadTableData %>% arrange(fiscalDay) %>% 
+      group_by_("fiscalMonth") %>%
+      summarize(FY17              = sum(obligation[fiscalYear==2017]),
+                FY17_21_trav      = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "21"]),
+                FY17_22_trans     = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "22"]),
+                FY17_23_rent      = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "23"]),
+                FY17_25_contr     = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "25"]),
+                FY17_26_supp_fuel = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "26"]),
+                FY17_31_equip     = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "31"]),
+                FY17_32_bldg_rep  = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "32"]),
+                FY17_31_fcm       = sum(obligation[fiscalYear==2017 & str_sub(commitItemGroup,1,2) == "FC"]),
+                FY18              = sum(obligation[fiscalYear==2018]),
+                FY18_21_trav      = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "21"]),
+                FY18_22_trans     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "22"]),
+                FY18_23_rent      = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "23"]),
+                FY18_25_contr     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "25"]),
+                FY18_26_supp_fuel = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "26"]),
+                FY18_31_equip     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "31"]),
+                FY18_32_bldg_rep  = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "32"]),
+                FY18_31_fcm       = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "FC"])) %>% 
+      mutate(FY17cum     = cumsum(FY17),
+             FY17travcum = cumsum(FY17_21_trav),
+             FY18cum     = cumsum(FY18),
+             FY18travcum = cumsum(FY18_21_trav)) #%>% 
+      #select(1, FY17, FY17cum, FY17trav, FY17travcum, FY17travcum, FY18, FY18cum, FY18trav, FY18travcum)
+  })
+  
+  
   # Reactive UI for Commitment Item drop-down
   output$commitmentItemCheckBoxes <- shiny::renderUI({
     
@@ -165,7 +206,7 @@ shinyServer(function(input, output) {
                        selected = choices)
   })
   
-  # Create plot
+  # Create comparative burnrate plot
   output$burnRatePlot <- renderPlot({
     
     plot_vlines <- switch(input$aggregate,
@@ -185,6 +226,22 @@ shinyServer(function(input, output) {
             
     print(plot)
   })
+  
+  # Create FY17 stacked burnrate plot #########################################################
+  # output$stackedBurnRatePlot <- renderPlot({
+  #   plot_vlines <- switch(input$aggregate,
+  #                         "fiscalQtr"   = fiscalQtr_lines,
+  #                         "fiscalMonth" = fiscalMonth_lines)
+  #   
+  #   plot <- ggplot(downloadTableData(), aes(x = fiscalMonth, y = cumOblig))
+  #   plot <- plot + geom_area(aes(color = dirfy17, fill = dirfy17)) +
+  #     theme_light() +
+  #     xlab("Day of Fiscal Year") + ylab("Obligations") + labs(title = "FY17 Obligations") +
+  #     scale_y_continuous(label = dollar_format())
+  #   
+  #   plot
+  #   
+  # })
   
   # Create summary table
   periodLabel <- reactive({
@@ -206,13 +263,32 @@ shinyServer(function(input, output) {
                                'FY18', 'FY18cum', 'FY18trav', 'FY18travcum'),
                    digits = 0))
                                               
-
+  # Download handler for directorate spending
+  output$downloadTable <- downloadHandler(
+    filename = function() {
+      str_c(input$dir, "_expenditures.csv")
+    },
+    content = function(file) {
+      write.csv(downloadTableData(), file, row.names = FALSE)
+    })
+  
+  
+  
+  
+  
+  
+  
+  
 # ### TROUBLESHOOTING OUTPUTS ####  
 #   
 #   output$plotDataTable <- renderDataTable({
 #     plotData()
 #   })
 #   
+  output$tableDataTable <- renderDataTable({
+    downloadTableData()
+  })
+  
 #   output$aggregateText <- renderText(input$simplify)
 # ######
   
