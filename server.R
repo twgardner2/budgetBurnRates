@@ -205,9 +205,13 @@ shinyServer(function(input, output) {
     
     stackPlotData <- downloadTableData()
     stackPlotData <- stackPlotData %>% select(1, contains("FY17_cum_")) %>% 
-                                       gather(key   = "commitItemGroup",
+                                       bind_rows(monthZero)
+
+    stackPlotData[is.na(stackPlotData)] <- 0
+
+    stackPlotData <- stackPlotData %>% gather(key   = "commitItemGroup",
                                               value = "cumObligations",
-                                              -fiscalMonth) %>% 
+                                              -fiscalMonth) %>%
                                        mutate(commitItemGroup = factor(commitItemGroup, levels = c("FY17_cum_fcm",
                                                                                                    "FY17_cum_32_bldg_rep",
                                                                                                    "FY17_cum_31_equip",
@@ -217,14 +221,7 @@ shinyServer(function(input, output) {
                                                                                                    "FY17_cum_22_trans",
                                                                                                    "FY17_cum_21_trav")
                                                                        )
-                                              ) #%>% 
-                                       #bind_rows(monthZero)
-      #stackPlotData <- replace(stackPlotData, 2:ncol(stackPlotData), 0)
-    #stackPlotData[is.na(stackPlotData)] <- 0
-
-    
-    
-    
+                                              )
     })
   
   
@@ -283,8 +280,12 @@ shinyServer(function(input, output) {
             theme_minimal() +
             ylab(label = "Obligations") + 
             xlab(label = "Fiscal Month") + 
+            scale_x_continuous(limits = c(0, 12),
+                               breaks = 0:12) +
             labs(fill = "Commitment Item Group") +
-            scale_y_continuous(label=scales::dollar)
+            scale_y_continuous(label=scales::dollar) +
+            theme(panel.grid.major.x = element_line(color="black")) +
+            theme(panel.grid.minor.x = element_blank())
             
     
     
@@ -293,7 +294,8 @@ shinyServer(function(input, output) {
     #   xlab("Day of Fiscal Year") + ylab("Obligations") + labs(title = "FY17 Obligations") +
     #   scale_y_continuous(label = dollar_format())
 
-    plot + geom_area(aes(fill = commitItemGroup), color = "black")  #color = commitItemGroup, 
+    plot + geom_area(aes(fill = commitItemGroup), color = "black") 
+           #geom_vline(xintercept = 1:12) 
     
     # gg <- ggplot(df, aes(x=as.numeric(as.character(Year)), y=Value))
     # gg <- gg + geom_area(aes(colour=Sector, fill=Sector))

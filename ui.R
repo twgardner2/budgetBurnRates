@@ -22,8 +22,8 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                               mainPanel(plotOutput(outputId = "burnRatePlot"),
                                         #textOutput(outputId = "aggregateText"), ### TROUBLESHOOTING
                                         dataTableOutput(outputId = "burnRateTable"),
-                                        plotOutput(outputId = "stackedBurnRatePlot"),
-                                        dataTableOutput(outputId = "stackData_DataTable") ### TROUBLESHOOTING
+                                        plotOutput(outputId = "stackedBurnRatePlot")
+                                        #dataTableOutput(outputId = "stackData_DataTable") ### TROUBLESHOOTING
                                         
                                         )
                               )
