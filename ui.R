@@ -1,7 +1,11 @@
-
+# To-do:
+#   - Selectize (or otherwise improve) commitItemGroup checkboxes
+#   - Fix stacked area graph for directorate expenditures
+#   - 
 
 # Define UI for application that draws a histogram
 shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
+                   ## Directorate Expenditures Tab ##
                    tabPanel(title = "Directorate Expenditures",
                             sidebarLayout(
                               sidebarPanel(
@@ -18,23 +22,25 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                               mainPanel(plotOutput(outputId = "burnRatePlot"),
                                         #textOutput(outputId = "aggregateText"), ### TROUBLESHOOTING
                                         dataTableOutput(outputId = "burnRateTable"),
-                                        #dataTableOutput(outputId = "tableDataTable") ### TROUBLESHOOTING
-                                        plotOutput(outputId = "stackedBurnRatePlot")
+                                        plotOutput(outputId = "stackedBurnRatePlot"),
+                                        dataTableOutput(outputId = "stackData_DataTable") ### TROUBLESHOOTING
+                                        
                                         )
                               )
                             ),
-                   tabPanel(title = "Commitment Item Analysis",
+                   ## Commitment Item Group Analysis Tab ##
+                   tabPanel(title = "Commitment Item Group Analysis",
                             sidebarLayout(
                               sidebarPanel(
-                                selectInput(inputId = "commitItemGroup",
-                                            label = "Select Commitment Item Group:",
-                                            choices = c("item1","item2","item3" ) ##############################################
-                                )
-                              ),
-                              mainPanel(
-
-                                )
-                              )
+                                radioButtons(inputId = "fy_cigaTab",
+                                                   label   = "Select Fiscal Year:",
+                                                   choices = c("2017", "2018")
+                                                   ),
+                                uiOutput(outputId = "commitItemGroup_cigaTab_ui")
+                                ),
+                              
+                              mainPanel()
                             )
-                   )
-        )
+                      )
+            )
+)

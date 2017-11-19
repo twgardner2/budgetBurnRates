@@ -3,7 +3,7 @@ library(readxl)
 library(lubridate)
 library(stringr)
 library(tidyverse)
-#library(shinyWidgets)
+library(shinyWidgets)
 library(shiny)
 library(DT)
 remove(list = ls())
@@ -87,7 +87,6 @@ fiscalQtr_lines <- unlist(map(ymd(c("2018-01-01", "2018-04-01", "2018-07-01")), 
 fiscalMonth_lines <- unlist(map(ymd(c("2017-11-01", "2017-12-01", "2018-01-01", "2018-02-01", "2018-03-01","2018-04-01", 
                                       "2018-05-01", "2018-06-01","2018-07-01", "2018-08-01", "2018-09-01")), dateToFD))
 
-
 data_file <- "NWA_Directorates_Obligations.xlsx"
 #data_file <- "//10.6.100.235/tacnasa1$/Public/J8/Gardner J8/FY18 Budget Forecasting/app/NWA_Directorates_Obligations.xlsx"
 #data_file <- "//10.6.100.235/tacnasa1$/Public/J8/Gardner/FY18 Budget Forecasting/app/data.xlsx"
@@ -120,7 +119,9 @@ saveRDS(expData, file="expData.RDS")
 
 
 shinyServer(function(input, output) {
-  
+  #### ### ### ### ### ### ### ### #
+  # Directorate Expenditures Tab ###
+  #### ### ### ### ### ### ### ### #
   # Reactive data for plot
   plotData <- reactive({
     
@@ -156,7 +157,6 @@ shinyServer(function(input, output) {
                   select(1, FY17, FY17cum, FY17trav, FY17travcum, FY17travcum, FY18, FY18cum, FY18trav, FY18travcum)
   })
   
-  
   # Reactive data for download table (table of all commitItemGroups)
   downloadTableData <- reactive({
     downloadTableData <- expData
@@ -184,35 +184,70 @@ shinyServer(function(input, output) {
                 FY18_32_bldg_rep  = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "32"]),
                 FY18_31_fcm       = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "FC"])) %>% 
       mutate(FY17_cum               = cumsum(FY17),
-             FY17_21_trav_cum      = cumsum(FY17_21_trav),
-             FY17_22_trans_cum     = cumsum(FY17_22_trans),
-             FY17_23_rent_cum      = cumsum(FY17_23_rent),
-             FY17_25_contr_cum     = cumsum(FY17_25_contr),
-             FY17_26_supp_fuel_cum = cumsum(FY17_26_supp_fuel),
-             FY17_31_equip_cum     = cumsum(FY17_31_equip),
-             FY17_32_bldg_rep_cum  = cumsum(FY17_32_bldg_rep),
-             FY17_fcm_cum          = cumsum(FY17_fcm),
+             FY17_cum_21_trav      = cumsum(FY17_21_trav),
+             FY17_cum_22_trans     = cumsum(FY17_22_trans),
+             FY17_cum_23_rent      = cumsum(FY17_23_rent),
+             FY17_cum_25_contr     = cumsum(FY17_25_contr),
+             FY17_cum_26_supp_fuel = cumsum(FY17_26_supp_fuel),
+             FY17_cum_31_equip     = cumsum(FY17_31_equip),
+             FY17_cum_32_bldg_rep  = cumsum(FY17_32_bldg_rep),
+             FY17_cum_fcm          = cumsum(FY17_fcm),
 
              
-             FY18cum     = cumsum(FY18),
-             FY18travcum = cumsum(FY18_21_trav)) #%>% 
+             FY18_cum     = cumsum(FY18),
+             FY18_cum_trav = cumsum(FY18_21_trav)) #%>% 
       #select(1, FY17, FY17cum, FY17trav, FY17travcum, FY17travcum, FY18, FY18cum, FY18trav, FY18travcum)
   })
+  
+  # Reactive data for stacked area plot
+  dirStackedPlotData <- reactive({
+    monthZero <- data.frame(fiscalMonth = 0)
+    
+    stackPlotData <- downloadTableData()
+    stackPlotData <- stackPlotData %>% select(1, contains("FY17_cum_")) %>% 
+                                       gather(key   = "commitItemGroup",
+                                              value = "cumObligations",
+                                              -fiscalMonth) %>% 
+                                       mutate(commitItemGroup = factor(commitItemGroup, levels = c("FY17_cum_fcm",
+                                                                                                   "FY17_cum_32_bldg_rep",
+                                                                                                   "FY17_cum_31_equip",
+                                                                                                   "FY17_cum_26_supp_fuel",
+                                                                                                   "FY17_cum_25_contr",
+                                                                                                   "FY17_cum_23_rent",
+                                                                                                   "FY17_cum_22_trans",
+                                                                                                   "FY17_cum_21_trav")
+                                                                       )
+                                              ) #%>% 
+                                       #bind_rows(monthZero)
+      #stackPlotData <- replace(stackPlotData, 2:ncol(stackPlotData), 0)
+    #stackPlotData[is.na(stackPlotData)] <- 0
+
+    
+    
+    
+    })
+  
+  
+  #####TROUBLESHOOTING
+  output$stackData_DataTable <- DT::renderDataTable(DT::datatable(dirStackedPlotData()))
+  
   
   
   # Reactive UI for Commitment Item drop-down
   output$commitmentItemCheckBoxes <- shiny::renderUI({
-    
     #choicesData <- expData %>% select(dir, commitmentItemText)
     choicesData <- expData %>% select(dir, commitItemGroup)
     if(input$dir != "SOCFWD-NWA") {choicesData <- choicesData %>% filter(dir == input$dir)}
     #choices <- sort(unique(choicesData$commitmentItemText))
     choices <- sort(unique(choicesData$commitItemGroup))
 
-    checkboxGroupInput(inputId  = "commitmentItems",
-                       label    = "Select Commitment Items to Include:",
-                       choices  = choices,
-                       selected = choices)
+    pickerInput(inputId  = "commitmentItems",
+                label    = "Select Commitment Items to Include:",
+                options = list(`actions-box`      = TRUE,
+                               `noneSelectedText` = TRUE),
+                choices  = choices,
+                selected = choices,
+                multiple = TRUE)
   })
   
   # Create comparative burnrate plot
@@ -238,20 +273,30 @@ shinyServer(function(input, output) {
   
   # Create FY17 stacked burnrate plot #########################################################
   output$stackedBurnRatePlot <- renderPlot({
-    plot_vlines <- switch(input$aggregate,
-                          "fiscalQtr"   = fiscalQtr_lines,
-                          "fiscalMonth" = fiscalMonth_lines)
+    # plot_vlines <- switch(input$aggregate,
+    #                       "fiscalQtr"   = fiscalQtr_lines,
+    #                       "fiscalMonth" = fiscalMonth_lines)
     
-    stackPlotData <- downloadTableData()
-    stackPlotData <- stackPlotData %>% select(1, contains("_cum"), contains("FY17"))
+    stackPlotData <- dirStackedPlotData()
+
+    plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = cumObligations)) +
+            theme_minimal() +
+            ylab(label = "Obligations") + 
+            xlab(label = "Fiscal Month") + 
+            labs(fill = "Commitment Item Group") +
+            scale_y_continuous(label=scales::dollar)
+            
     
-    plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = FY17_cum))
+    
     # plot <- plot + geom_area(aes(color = dirfy17, fill = dirfy17)) +
     #   theme_light() +
     #   xlab("Day of Fiscal Year") + ylab("Obligations") + labs(title = "FY17 Obligations") +
     #   scale_y_continuous(label = dollar_format())
 
-    plot + geom_area()
+    plot + geom_area(aes(fill = commitItemGroup), color = "black")  #color = commitItemGroup, 
+    
+    # gg <- ggplot(df, aes(x=as.numeric(as.character(Year)), y=Value))
+    # gg <- gg + geom_area(aes(colour=Sector, fill=Sector))
 
   })
   
@@ -270,10 +315,9 @@ shinyServer(function(input, output) {
                                                             rownames = FALSE,
                                                             options = list(dom    ='t',
                                                                            paging = FALSE)
-  ) %>%
-    formatCurrency(columns = c('FY17', 'FY17cum','FY17trav','FY17travcum',
-                               'FY18', 'FY18cum', 'FY18trav', 'FY18travcum'),
-                   digits = 0))
+  ) %>% formatCurrency(columns = c('FY17', 'FY17cum','FY17trav','FY17travcum',
+                                   'FY18', 'FY18cum', 'FY18trav', 'FY18travcum'),
+                       digits = 0))
                                               
   # Download handler for directorate spending
   output$downloadTable <- downloadHandler(
@@ -285,8 +329,17 @@ shinyServer(function(input, output) {
     })
   
   
+  #### ### ### ### ### ### ### ### #
+  # Commitment Item Group Analysis #
+  #### ### ### ### ### ### ### ### #
   
-  
+  output$commitItemGroup_cigaTab_ui <- shiny::renderUI({
+    #choicesData <- expData %>% select(commitItemGroup) 
+    choices <- expData %>% select(commitItemGroup) %>% unlist() %>% unique() %>% sort()
+    radioButtons(inputId = "commitItemGroup_dropdown",
+                label   = "Select Commitment Item Group:",
+                choices = choices)
+  })
   
   
   
