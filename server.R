@@ -82,6 +82,8 @@ prepFYExp <- function(x) {
 roundToHundred <- function(x) {round(x/100)*100}
 #####
 
+### Pre-Server Code ####
+
 ### Plot helper variables ###
 fiscalQtr_lines <- unlist(map(ymd(c("2018-01-01", "2018-04-01", "2018-07-01")), dateToFD))
 fiscalMonth_lines <- unlist(map(ymd(c("2017-11-01", "2017-12-01", "2018-01-01", "2018-02-01", "2018-03-01","2018-04-01", 
@@ -116,7 +118,7 @@ expData <- dplyr::bind_rows(exp18Data, exp17Data)
 remove(exp18Data, exp17Data)
 ### Output cleaned data
 saveRDS(expData, file="expData.RDS")
-
+#####
 
 shinyServer(function(input, output) {
   #### ### ### ### ### ### ### ### #
@@ -279,7 +281,7 @@ shinyServer(function(input, output) {
     print(plot)
   })
   
-  # Create FY17 stacked burnrate plot #########################################################
+  # Create FY17 stacked burnrate plot
   output$stackedBurnRatePlot <- renderPlot({
 
     stackPlotData <- dirStackedPlotData()
@@ -295,18 +297,7 @@ shinyServer(function(input, output) {
             theme(panel.grid.major.x = element_line(color="black")) +
             theme(panel.grid.minor.x = element_blank())
             
-    
-    
-    # plot <- plot + geom_area(aes(color = dirfy17, fill = dirfy17)) +
-    #   theme_light() +
-    #   xlab("Day of Fiscal Year") + ylab("Obligations") + labs(title = "FY17 Obligations") +
-    #   scale_y_continuous(label = dollar_format())
-
     plot + geom_area(aes(fill = commitItemGroup), color = "black") 
-           #geom_vline(xintercept = 1:12) 
-    
-    # gg <- ggplot(df, aes(x=as.numeric(as.character(Year)), y=Value))
-    # gg <- gg + geom_area(aes(colour=Sector, fill=Sector))
 
   })
   
@@ -344,16 +335,65 @@ shinyServer(function(input, output) {
   #### ### ### ### ### ### ### ### #
   
   output$commitItemGroup_cigaTab_ui <- shiny::renderUI({
-    #choicesData <- expData %>% select(commitItemGroup) 
     choices <- expData %>% select(commitItemGroup) %>% unlist() %>% unique() %>% sort()
-    radioButtons(inputId = "commitItemGroup_dropdown",
-                label   = "Select Commitment Item Group:",
-                choices = choices)
+    radioButtons(inputId = "commitItemGroup_cigaTab",
+                 label   = "Select Commitment Item Group:",
+                 choices = choices)
   })
   
+  # Reactive data for Commitment Item Group plot
+  commitItemGroupPlotData <- reactive({
+    x <- expData %>% select(dir, fiscalYear, fiscalMonth, commitItemGroup, obligation)
+    
+    x <- x %>% mutate(dir = ifelse(is.na(dir), "Not Assigned", dir)) %>% 
+                            filter(commitItemGroup %in% input$commitItemGroup_cigaTab, fiscalYear %in% input$fy_cigaTab) %>% 
+                            group_by(dir, fiscalMonth) %>% 
+                            arrange(fiscalMonth) %>% 
+                            summarize(monthObligation = sum(obligation)) %>% 
+                            complete(fiscalMonth = 0:12, fill = list(monthObligation = 0)) %>% 
+                            mutate(cumObligation = cumsum(monthObligation))
+  })
+  
+  # Stacked area plot for what directorates obligated against selected Commitment Item Group
+  output$commitItemGroupStack_ciga <- renderPlot({
+    stackPlotData <- commitItemGroupPlotData()
+    
+    plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = cumObligation)) +
+            theme_minimal() +
+            ylab(label = "Obligations") + 
+            xlab(label = "Fiscal Month") + 
+            scale_x_continuous(limits = c(0, 12),
+                               breaks = 0:12) +
+            labs(fill = "Directorate") +
+            scale_y_continuous(label=scales::dollar) +
+            theme(panel.grid.major.x = element_line(color="black")) +
+            theme(panel.grid.minor.x = element_blank())
+    
+    plot + geom_area(aes(fill = dir), color = "black")
+    
+  })
+    
+  
+  # Download handler for Commitment Item Group table
+  output$downloadCommitItemByDir <- downloadHandler(
+    filename = function() {
+      str_c(input$commitItemGroup_cigaTab, "_expenditures.csv")
+    },
+    content = function(file) {
+      write.csv(commitItemGroupPlotData(), file, row.names = FALSE)
+    })
   
   
-  
+  ### TROUBLESHOOTING OUTPUTS ####
+
+    output$commitItemDataTable <- DT::renderDataTable(DT::datatable(data = commitItemGroupPlotData(),
+                                                                    class = 'cell-border stripe',
+                                                                    colnames = c("Directorate", "Fiscal Month", "Obligations", "Cum. Obligations"),
+                                                                    rownames = FALSE
+                                                                    )
+                                                       %>% formatCurrency(columns = c("monthObligation", "cumObligation"),
+                                                                           digits = 0))
+    
 # ### TROUBLESHOOTING OUTPUTS ####  
 #   
 #   output$plotDataTable <- renderDataTable({

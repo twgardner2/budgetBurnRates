@@ -24,7 +24,6 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                                                label    = "Download Data")
                                 ),
                               mainPanel(plotOutput(outputId = "burnRatePlot"),
-                                        #textOutput(outputId = "aggregateText"), ### TROUBLESHOOTING
                                         dataTableOutput(outputId = "burnRateTable"),
                                         plotOutput(outputId = "stackedBurnRatePlot")
                                         #dataTableOutput(outputId = "stackData_DataTable") ### TROUBLESHOOTING
@@ -40,10 +39,13 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                                                    label   = "Select Fiscal Year:",
                                                    choices = c("2017", "2018")
                                                    ),
-                                uiOutput(outputId = "commitItemGroup_cigaTab_ui")
+                                uiOutput(outputId = "commitItemGroup_cigaTab_ui"),
+                                downloadButton(outputId = "downloadCommitItemByDir",
+                                               label    = "Download Data")
                                 ),
                               
-                              mainPanel()
+                              mainPanel(plotOutput(outputId = "commitItemGroupStack_ciga"),
+                                        dataTableOutput(outputId = "commitItemDataTable"))
                             )
                       )
             )
