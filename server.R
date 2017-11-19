@@ -113,7 +113,7 @@ exp18Data <- dplyr::left_join(exp18Data, wbsList2018, by = "wbs2018")
 
 ### Combine FY17 and FY18 data into single tibble
 expData <- dplyr::bind_rows(exp18Data, exp17Data)
-
+remove(exp18Data, exp17Data)
 ### Output cleaned data
 saveRDS(expData, file="expData.RDS")
 
@@ -183,7 +183,7 @@ shinyServer(function(input, output) {
                 FY18_31_equip     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "31"]),
                 FY18_32_bldg_rep  = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "32"]),
                 FY18_31_fcm       = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "FC"])) %>% 
-      mutate(FY17_cum               = cumsum(FY17),
+      mutate(FY17_cum              = cumsum(FY17),
              FY17_cum_21_trav      = cumsum(FY17_21_trav),
              FY17_cum_22_trans     = cumsum(FY17_22_trans),
              FY17_cum_23_rent      = cumsum(FY17_23_rent),
@@ -193,35 +193,46 @@ shinyServer(function(input, output) {
              FY17_cum_32_bldg_rep  = cumsum(FY17_32_bldg_rep),
              FY17_cum_fcm          = cumsum(FY17_fcm),
 
-             
-             FY18_cum     = cumsum(FY18),
-             FY18_cum_trav = cumsum(FY18_21_trav)) #%>% 
-      #select(1, FY17, FY17cum, FY17trav, FY17travcum, FY17travcum, FY18, FY18cum, FY18trav, FY18travcum)
+             FY18_cum              = cumsum(FY18),
+             FY18_cum_21_trav      = cumsum(FY18_21_trav),
+             FY18_cum_22_trans     = cumsum(FY18_22_trans),
+             FY18_cum_23_rent      = cumsum(FY18_23_rent),
+             FY18_cum_25_contr     = cumsum(FY18_25_contr),
+             FY18_cum_26_supp_fuel = cumsum(FY18_26_supp_fuel),
+             FY18_cum_31_equip     = cumsum(FY18_31_equip),
+             FY18_cum_32_bldg_rep  = cumsum(FY18_32_bldg_rep))#,
+             #FY18_cum_fcm          = cumsum(FY18_fcm))
   })
   
   # Reactive data for stacked area plot
   dirStackedPlotData <- reactive({
+    
+    match_string <- switch(input$fy_deTab,
+                           "2017" = "FY17_cum_",
+                           "2018" = "FY18_cum_")
+    
     monthZero <- data.frame(fiscalMonth = 0)
     
     stackPlotData <- downloadTableData()
-    stackPlotData <- stackPlotData %>% select(1, contains("FY17_cum_")) %>% 
+    stackPlotData <- stackPlotData %>% select(1, contains(match_string)) %>% 
                                        bind_rows(monthZero)
+    remove(monthZero)
 
     stackPlotData[is.na(stackPlotData)] <- 0
 
     stackPlotData <- stackPlotData %>% gather(key   = "commitItemGroup",
                                               value = "cumObligations",
-                                              -fiscalMonth) %>%
-                                       mutate(commitItemGroup = factor(commitItemGroup, levels = c("FY17_cum_fcm",
-                                                                                                   "FY17_cum_32_bldg_rep",
-                                                                                                   "FY17_cum_31_equip",
-                                                                                                   "FY17_cum_26_supp_fuel",
-                                                                                                   "FY17_cum_25_contr",
-                                                                                                   "FY17_cum_23_rent",
-                                                                                                   "FY17_cum_22_trans",
-                                                                                                   "FY17_cum_21_trav")
-                                                                       )
-                                              )
+                                              -fiscalMonth) #%>%
+                                       # mutate(commitItemGroup = factor(commitItemGroup, levels = c("FY17_cum_fcm",
+                                       #                                                             "FY17_cum_32_bldg_rep",
+                                       #                                                             "FY17_cum_31_equip",
+                                       #                                                             "FY17_cum_26_supp_fuel",
+                                       #                                                             "FY17_cum_25_contr",
+                                       #                                                             "FY17_cum_23_rent",
+                                       #                                                             "FY17_cum_22_trans",
+                                       #                                                             "FY17_cum_21_trav")
+                                       #                                 )
+                                              #)
     })
   
   
@@ -270,10 +281,7 @@ shinyServer(function(input, output) {
   
   # Create FY17 stacked burnrate plot #########################################################
   output$stackedBurnRatePlot <- renderPlot({
-    # plot_vlines <- switch(input$aggregate,
-    #                       "fiscalQtr"   = fiscalQtr_lines,
-    #                       "fiscalMonth" = fiscalMonth_lines)
-    
+
     stackPlotData <- dirStackedPlotData()
 
     plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = cumObligations)) +

@@ -16,6 +16,10 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                                              label = "Table Aggregation Timeframe:",
                                              choices = c("Monthly" = "fiscalMonth", "Quarterly" = "fiscalQtr")),
                                 uiOutput(outputId = "commitmentItemCheckBoxes"),
+                                radioButtons(inputId = "fy_deTab",
+                                             label   = "Select Fiscal Year for Stacked Area Chart:",
+                                             choices = c("2017", "2018")
+                                ),
                                 downloadButton(outputId = "downloadTable",
                                                label    = "Download Data")
                                 ),
