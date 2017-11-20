@@ -14,7 +14,7 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                                             choices = c("SOCFWD-NWA", sort(wbsList$dir))),
                                 radioButtons(inputId = "aggregate",
                                              label = "Table Aggregation Timeframe:",
-                                             choices = c("Monthly" = "fiscalMonth", "Quarterly" = "fiscalQtr")),
+                                             choices = c("Quarterly" = "fiscalQtr", "Monthly" = "fiscalMonth")),
                                 uiOutput(outputId = "commitmentItemCheckBoxes"),
                                 radioButtons(inputId = "fy_deTab",
                                              label   = "Select Fiscal Year for Stacked Area Chart:",
@@ -25,8 +25,8 @@ shinyUI(navbarPage("SOCFWD-NWA Expenditures Analysis Tool",
                                 ),
                               mainPanel(plotOutput(outputId = "burnRatePlot"),
                                         dataTableOutput(outputId = "burnRateTable"),
-                                        plotOutput(outputId = "stackedBurnRatePlot")
-                                        #dataTableOutput(outputId = "stackData_DataTable") ### TROUBLESHOOTING
+                                        plotOutput(outputId = "stackedBurnRatePlot"),
+                                        dataTableOutput(outputId = "stackData_DataTable") ### TROUBLESHOOTING
                                         
                                         )
                               )

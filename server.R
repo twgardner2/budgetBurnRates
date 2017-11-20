@@ -121,10 +121,12 @@ saveRDS(expData, file="expData.RDS")
 #####
 
 shinyServer(function(input, output) {
+  
   #### ### ### ### ### ### ### ### #
   # Directorate Expenditures Tab ###
   #### ### ### ### ### ### ### ### #
-  # Reactive data for plot
+  
+  # Reactive data for burn rate plot
   plotData <- reactive({
     
     plotData <- expData
@@ -138,7 +140,7 @@ shinyServer(function(input, output) {
                              mutate(cum_amount = cumsum(obligation))
   })
 
-  # Reactive data for table
+  # Reactive data for burn rate table
   tableData <- reactive({
     tableData <- expData
     
@@ -209,18 +211,20 @@ shinyServer(function(input, output) {
   # Reactive data for stacked area plot
   dirStackedPlotData <- reactive({
     
+    stackPlotData <- downloadTableData()
+
     match_string <- switch(input$fy_deTab,
                            "2017" = "FY17_cum_",
                            "2018" = "FY18_cum_")
     
     monthZero <- data.frame(fiscalMonth = 0)
     
-    stackPlotData <- downloadTableData()
     stackPlotData <- stackPlotData %>% select(1, contains(match_string)) %>% 
                                        bind_rows(monthZero)
     remove(monthZero)
 
     stackPlotData[is.na(stackPlotData)] <- 0
+    
 
     stackPlotData <- stackPlotData %>% gather(key   = "commitItemGroup",
                                               value = "cumObligations",
@@ -240,15 +244,14 @@ shinyServer(function(input, output) {
   
   #####TROUBLESHOOTING
   output$stackData_DataTable <- DT::renderDataTable(DT::datatable(dirStackedPlotData()))
-  
-  
+  ###
+
   
   # Reactive UI for Commitment Item drop-down
   output$commitmentItemCheckBoxes <- shiny::renderUI({
-    #choicesData <- expData %>% select(dir, commitmentItemText)
     choicesData <- expData %>% select(dir, commitItemGroup)
     if(input$dir != "SOCFWD-NWA") {choicesData <- choicesData %>% filter(dir == input$dir)}
-    #choices <- sort(unique(choicesData$commitmentItemText))
+
     choices <- sort(unique(choicesData$commitItemGroup))
 
     pickerInput(inputId  = "commitmentItems",
@@ -285,6 +288,12 @@ shinyServer(function(input, output) {
   output$stackedBurnRatePlot <- renderPlot({
 
     stackPlotData <- dirStackedPlotData()
+    
+    if (input$fy_deTab == "2018") {
+      currentFiscalMonth = dateToFM(lubridate::today())
+      stackPlotData[stackPlotData$fiscalMonth > currentFiscalMonth,]$cumObligations <- NA
+    }
+    
 
     plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = cumObligations)) +
             theme_minimal() +
@@ -383,14 +392,12 @@ shinyServer(function(input, output) {
       write.csv(commitItemGroupPlotData(), file, row.names = FALSE)
     })
   
-  
-  ### TROUBLESHOOTING OUTPUTS ####
-
-    output$commitItemDataTable <- DT::renderDataTable(DT::datatable(data = commitItemGroupPlotData(),
-                                                                    class = 'cell-border stripe',
-                                                                    colnames = c("Directorate", "Fiscal Month", "Obligations", "Cum. Obligations"),
-                                                                    rownames = FALSE
-                                                                    )
+  # Table of Commitment Item Group spending by directorate
+  output$commitItemDataTable <- DT::renderDataTable(DT::datatable(data = commitItemGroupPlotData(),
+                                                                  class = 'cell-border stripe',
+                                                                  colnames = c("Directorate", "Fiscal Month", "Obligations", "Cum. Obligations"),
+                                                                  rownames = FALSE
+                                                                  )
                                                        %>% formatCurrency(columns = c("monthObligation", "cumObligation"),
                                                                            digits = 0))
     
@@ -400,9 +407,9 @@ shinyServer(function(input, output) {
 #     plotData()
 #   })
 #   
-  output$tableDataTable <- renderDataTable({
-    downloadTableData()
-  })
+#   output$tableDataTable <- renderDataTable({
+#     downloadTableData()
+#   })
   
 #   output$aggregateText <- renderText(input$simplify)
 # ######
