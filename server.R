@@ -117,7 +117,7 @@ exp18Data <- dplyr::left_join(exp18Data, wbsList2018, by = "wbs2018")
 expData <- dplyr::bind_rows(exp18Data, exp17Data)
 remove(exp18Data, exp17Data)
 ### Output cleaned data
-saveRDS(expData, file="expData.RDS")
+#saveRDS(expData, file="expData.RDS")
 #####
 
 shinyServer(function(input, output) {
@@ -187,6 +187,27 @@ shinyServer(function(input, output) {
                 FY18_31_equip     = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "31"]),
                 FY18_32_bldg_rep  = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "32"]),
                 FY18_31_fcm       = sum(obligation[fiscalYear==2018 & str_sub(commitItemGroup,1,2) == "FC"])) %>% 
+
+      #arrange(fiscalMonth) %>% 
+
+      complete(fiscalMonth = 0:12, fill = list(FY17=0,
+                                               FY17_21_trav=0,
+                                               FY17_22_trans=0,
+                                               FY17_23_rent=0,
+                                               FY17_25_contr=0,
+                                               FY17_26_supp_fuel=0,
+                                               FY17_31_equip=0,
+                                               FY17_32_bldg_rep=0,
+                                               FY17_fcm=0,
+                                               FY18=0,
+                                               FY18_21_trav=0,
+                                               FY18_22_trans=0,
+                                               FY18_23_rent=0,
+                                               FY18_25_contr=0,
+                                               FY18_26_supp_fuel=0,
+                                               FY18_31_equip=0,
+                                               FY18_32_bldg_rep=0,
+                                               FY18_31_fcm=0)) %>%
       mutate(FY17_cum              = cumsum(FY17),
              FY17_cum_21_trav      = cumsum(FY17_21_trav),
              FY17_cum_22_trans     = cumsum(FY17_22_trans),
@@ -204,7 +225,7 @@ shinyServer(function(input, output) {
              FY18_cum_25_contr     = cumsum(FY18_25_contr),
              FY18_cum_26_supp_fuel = cumsum(FY18_26_supp_fuel),
              FY18_cum_31_equip     = cumsum(FY18_31_equip),
-             FY18_cum_32_bldg_rep  = cumsum(FY18_32_bldg_rep))#,
+             FY18_cum_32_bldg_rep  = cumsum(FY18_32_bldg_rep))
              #FY18_cum_fcm          = cumsum(FY18_fcm))
   })
   
@@ -217,11 +238,8 @@ shinyServer(function(input, output) {
                            "2017" = "FY17_cum_",
                            "2018" = "FY18_cum_")
     
-    monthZero <- data.frame(fiscalMonth = 0)
-    
-    stackPlotData <- stackPlotData %>% select(1, contains(match_string)) %>% 
-                                       bind_rows(monthZero)
-    remove(monthZero)
+
+    stackPlotData <- stackPlotData %>% select(1, contains(match_string))
 
     stackPlotData[is.na(stackPlotData)] <- 0
     
@@ -284,7 +302,7 @@ shinyServer(function(input, output) {
     print(plot)
   })
   
-  # Create FY17 stacked burnrate plot
+  # Create stacked burnrate plot
   output$stackedBurnRatePlot <- renderPlot({
 
     stackPlotData <- dirStackedPlotData()
@@ -367,6 +385,11 @@ shinyServer(function(input, output) {
   output$commitItemGroupStack_ciga <- renderPlot({
     stackPlotData <- commitItemGroupPlotData()
     
+    if (input$fy_cigaTab == "2018") {
+      currentFiscalMonth <- dateToFM(lubridate::today())
+      stackPlotData[stackPlotData$fiscalMonth > currentFiscalMonth,]$cumObligation <- NA
+    }
+
     plot <- ggplot(stackPlotData, aes(x = fiscalMonth, y = cumObligation)) +
             theme_minimal() +
             ylab(label = "Obligations") + 
